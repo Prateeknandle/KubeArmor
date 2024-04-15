@@ -18,6 +18,10 @@ var _ = BeforeSuite(func() {
 	err := K8sApplyFile("manifests/ubuntu-deployment.yaml")
 	Expect(err).To(BeNil())
 
+	// // install wordpress-mysql app
+	// err = K8sApply([]string{"manifests/wordpress-mysql-deployment.yaml"})
+	// Expect(err).To(BeNil())
+
 	// delete all KSPs
 	err = DeleteAllKsp()
 	Expect(err).To(BeNil())
@@ -35,6 +39,10 @@ var _ = AfterSuite(func() {
 	// these deployments are not needed after this suite
 	err := K8sDelete([]string{"manifests/ubuntu-deployment.yaml"})
 	Expect(err).To(BeNil())
+
+	// // Delete wordpress-mysql app
+	// err = K8sDelete([]string{"manifests/wordpress-mysql-deployment.yaml"})
+	// Expect(err).To(BeNil())
 })
 
 func getUnannotatedPod(name string, ant string) string {
@@ -50,6 +58,13 @@ func getFullyAnnotatedPod(name string, ant string) string {
 	Expect(len(pods)).To(Equal(1))
 	return pods[0]
 }
+
+// func getWpsqlPod(name string, ant string) string {
+// 	pods, err := K8sGetPods(name, "wordpress-mysql", []string{ant}, 60)
+// 	Expect(err).To(BeNil())
+// 	Expect(len(pods)).To(Equal(1))
+// 	return pods[0]
+// }
 
 func getPartialyAnnotatedPod(name string, ant string) string {
 	pods, err := K8sGetPods(name, "partialyannotated", []string{ant}, 60)
@@ -307,6 +322,9 @@ var _ = Describe("KubeArmor-Config", func() {
 			cm.DefaultFilePosture = "block"
 			cm.DefaultCapabilitiesPosture = "block"
 			cm.DefaultNetworkPosture = "block"
+
+			cm.AlertThrottling = "false" // default
+
 			err = cm.CreateKAConfigMap() // will create a configMap with default posture as block
 			Expect(err).To(BeNil())
 
@@ -323,4 +341,67 @@ var _ = Describe("KubeArmor-Config", func() {
 
 	})
 
+	// Describe("Alert Throttling", func() {
+
+	// 	It("enabled with new throttling conditions", func() {
+
+	// 		wp := getWpsqlPod("wordpress-", "kubearmor-policy: enabled")
+
+	// 		// apply a allow based policy
+	// 		err := K8sApplyFile("manifests/ksp-wordpress-allow-tcp.yaml")
+	// 		Expect(err).To(BeNil())
+
+	// 		err = KarmorLogStart("policy", "wordpress-mysql", "", wp)
+	// 		Expect(err).To(BeNil())
+
+	// 		// change global default posture to block using configmap
+	// 		cm := NewDefaultConfigMapData()
+	// 		cm.DefaultFilePosture = "block"
+	// 		cm.DefaultCapabilitiesPosture = "block"
+	// 		cm.DefaultNetworkPosture = "block"
+
+	// 		// enable throttling and change throttling condition using configmap
+	// 		cm.AlertThrottling = "true"
+	// 		cm.MaxAlertPerSec = "2"
+	// 		cm.ThrottleSec = "30"
+	// 		err = cm.CreateKAConfigMap() // will create a configMap with new new throttling condition
+	// 		Expect(err).To(BeNil())
+
+	// 		sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
+	// 			[]string{"bash", "-c", "curl google.com"})
+	// 		Expect(err).To(BeNil())
+	// 		fmt.Printf("OUTPUT: %s\n", sout)
+	// 		Expect(sout).To(MatchRegexp(".*Could not resolve host"))
+
+	// 		// should get an throttling alert
+	// 		// check policy violation alert
+
+	// 		target := protobuf.Alert{
+	// 			NamespaceName:          "wordpress-mysql",
+	// 			Operation:              "AlertThreshold",
+	// 			Type:                   "SystemEvent",
+	// 			MaxAlertsPerSec:        2,
+	// 			DroppingAlertsInterval: 30,
+	// 		}
+
+	// 		res, err := KarmorGetTargetAlert(5*time.Second, &target)
+	// 		Expect(err).To(BeNil())
+	// 		Expect(res.Found).To(BeTrue())
+
+	// 		// _, alerts, err := KarmorGetLogs(5*time.Second, 1)
+	// 		// Expect(err).To(BeNil())
+	// 		// Expect(len(alerts)).To(BeNumerically("==", 3))
+
+	// 		// check for throttling, alerts should not be genrated
+	// 		sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
+	// 			[]string{"bash", "-c", "curl google.com"})
+	// 		Expect(err).To(BeNil())
+	// 		fmt.Printf("---START---\n%s---END---\n", sout)
+	// 		Expect(sout).To(MatchRegexp(".*Could not resolve host"))
+
+	// 		_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+	// 		Expect(err).To(BeNil())
+	// 		Expect(len(alerts)).To(BeNumerically("==", 0))
+	// 	})
+	// })
 })

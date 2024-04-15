@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -2351,6 +2352,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 
 	cmNS := dm.GetConfigMapNS()
 
+	var err error
 	registration, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if cm, ok := obj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
@@ -2369,6 +2371,13 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 					NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
 					CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
 				}
+				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
+					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
+				}
+				cfg.GlobalCfg.MaxAlertPerSec, err = strconv.Atoi(cm.Data[cfg.ConfigMaxAlertPerSec])
+				cfg.GlobalCfg.ThrottleSec, err = strconv.Atoi(cm.Data[cfg.ConfigThrottleSec])
+				dm.SystemMonitor.UpdateThrottlingConfig()
+
 				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
 				dm.UpdateGlobalPosture(globalPosture)
 
@@ -2402,6 +2411,13 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.updatEndpointsWithCM(cm, "MODIFIED")
 				// update visibility for namespaces
 				dm.updateVisibilityWithCM(cm, "MODIFIED")
+
+				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
+					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
+				}
+				cfg.GlobalCfg.MaxAlertPerSec, err = strconv.Atoi(cm.Data[cfg.ConfigMaxAlertPerSec])
+				cfg.GlobalCfg.ThrottleSec, err = strconv.Atoi(cm.Data[cfg.ConfigThrottleSec])
+				dm.SystemMonitor.UpdateThrottlingConfig()
 			}
 		},
 		DeleteFunc: func(obj interface{}) {

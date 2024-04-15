@@ -28,6 +28,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// OuterKey
+type OuterKey struct {
+	PidNs uint32
+	MntNs uint32
+}
+
+var ContainerNsKey map[string]OuterKey
+
 // ============ //
 // == Common == //
 // ============ //

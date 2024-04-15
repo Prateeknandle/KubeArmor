@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kubearmor/KubeArmor/protobuf"
 	"github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/onsi/ginkgo/v2"
@@ -330,5 +331,62 @@ var _ = Describe("Smoke", func() {
 			Expect(alerts[0].Result).To(Equal("Passed"))
 		})
 	})
+	Describe("Alert Throttling", func() {
 
+		It("enabled with new throttling conditions", func() {
+
+			wp := getWpsqlPod("wordpress-", "kubearmor-policy: enabled")
+
+			// apply a allow based policy
+			err := K8sApplyFile("res/ksp-wordpress-block-process.yaml")
+			Expect(err).To(BeNil())
+
+			err = KarmorLogStart("policy", "wordpress-mysql", "", wp)
+			Expect(err).To(BeNil())
+
+			// enable throttling and change throttling condition using configmap
+			cm := NewDefaultConfigMapData()
+			cm.AlertThrottling = "true"
+			cm.MaxAlertPerSec = "2"
+			cm.ThrottleSec = "30"
+			err = cm.CreateKAConfigMap() // will create a configMap with new new throttling condition
+			Expect(err).To(BeNil())
+
+			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "count=0; while [ $count -lt 5 ]; do apt update; count=$((count + 1)); done;"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+			Expect(sout).To(MatchRegexp("apt.*Permission denied"))
+
+			// should get an throttling alert
+			// check policy violation alert
+
+			target := protobuf.Alert{
+				NamespaceName:          "wordpress-mysql",
+				Operation:              "AlertThreshold",
+				Type:                   "SystemEvent",
+				MaxAlertsPerSec:        2,
+				DroppingAlertsInterval: 30,
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &target)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// _, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			// Expect(err).To(BeNil())
+			// Expect(len(alerts)).To(BeNumerically("==", 3))
+
+			// check for throttling, alerts should not be genrated
+			sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "apt update"})
+			Expect(err).To(BeNil())
+			fmt.Printf("---START---\n%s---END---\n", sout)
+			Expect(sout).To(MatchRegexp("apt.*Permission denied"))
+
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically("==", 0))
+		})
+	})
 })

@@ -421,6 +421,12 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				}
 
 				if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
+					// for throttling
+					common.ContainerNsKey[container.ContainerID] = common.OuterKey{
+						MntNs: container.MntNS,
+						PidNs: container.PidNS,
+					}
+
 					// update NsMap
 					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
 					dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
@@ -600,6 +606,12 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
+			// for throttling
+			common.ContainerNsKey[containerID] = common.OuterKey{
+				MntNs: container.MntNS,
+				PidNs: container.PidNS,
+			}
+
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
@@ -681,6 +693,9 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
+			outkey := common.ContainerNsKey[containerID]
+			dm.Logger.DeleteAlertMapKey(outkey)
+			delete(common.ContainerNsKey, containerID)
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
