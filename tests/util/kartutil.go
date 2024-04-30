@@ -136,7 +136,7 @@ func (data *ConfigMapData) CreateKAConfigMap() error {
 			"defaultNetworkPosture":      data.DefaultNetworkPosture,
 			"alertThrottling":            data.AlertThrottling,
 			"maxAlertPerSec":             data.MaxAlertPerSec,
-			"hrottleSec":                 data.ThrottleSec,
+			"throttleSec":                data.ThrottleSec,
 		},
 	}
 

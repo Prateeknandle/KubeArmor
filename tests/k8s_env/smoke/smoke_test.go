@@ -335,21 +335,19 @@ var _ = Describe("Smoke", func() {
 
 		It("enabled with new throttling conditions", func() {
 
-			wp := getWpsqlPod("wordpress-", "kubearmor-policy: enabled")
-
 			// apply a allow based policy
 			err := K8sApplyFile("res/ksp-wordpress-block-process.yaml")
 			Expect(err).To(BeNil())
 
-			err = KarmorLogStart("policy", "wordpress-mysql", "", wp)
+			err = KarmorLogStart("", "wordpress-mysql", "", wp)
 			Expect(err).To(BeNil())
 
 			// enable throttling and change throttling condition using configmap
 			cm := NewDefaultConfigMapData()
 			cm.AlertThrottling = "true"
 			cm.MaxAlertPerSec = "2"
-			cm.ThrottleSec = "30"
-			err = cm.CreateKAConfigMap() // will create a configMap with new new throttling condition
+			cm.ThrottleSec = "120"
+			err = cm.CreateKAConfigMap() // will create a configMap with new throttling condition
 			Expect(err).To(BeNil())
 
 			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
@@ -366,7 +364,7 @@ var _ = Describe("Smoke", func() {
 				Operation:              "AlertThreshold",
 				Type:                   "SystemEvent",
 				MaxAlertsPerSec:        2,
-				DroppingAlertsInterval: 30,
+				DroppingAlertsInterval: 120,
 			}
 
 			res, err := KarmorGetTargetAlert(5*time.Second, &target)
