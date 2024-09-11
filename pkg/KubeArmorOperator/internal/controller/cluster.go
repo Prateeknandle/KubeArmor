@@ -811,13 +811,23 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 		updated = true
 	}
 	MaxAlertPerSec := strconv.FormatInt(int64(config.MaxAlertPerSec), 10)
-	if common.ConfigMapData[common.ConfigMaxAlertPerSec] != MaxAlertPerSec {
-		common.ConfigMapData[common.ConfigMaxAlertPerSec] = MaxAlertPerSec
+	if config.MaxAlertPerSec != 0 {
+		if common.ConfigMapData[common.ConfigMaxAlertPerSec] != MaxAlertPerSec {
+			common.ConfigMapData[common.ConfigMaxAlertPerSec] = MaxAlertPerSec
+			updated = true
+		}
+	} else {
+		common.ConfigMapData[common.ConfigMaxAlertPerSec] = common.DefaultMaxAlertPerSec
 		updated = true
 	}
 	ThrottleSec := strconv.FormatInt(int64(config.ThrottleSec), 10)
-	if common.ConfigMapData[common.ConfigThrottleSec] != ThrottleSec {
-		common.ConfigMapData[common.ConfigThrottleSec] = ThrottleSec
+	if config.ThrottleSec != 0 {
+		if common.ConfigMapData[common.ConfigThrottleSec] != ThrottleSec {
+			common.ConfigMapData[common.ConfigThrottleSec] = ThrottleSec
+			updated = true
+		}
+	} else {
+		common.ConfigMapData[common.ConfigThrottleSec] = common.DefaultThrottleSec
 		updated = true
 	}
 
